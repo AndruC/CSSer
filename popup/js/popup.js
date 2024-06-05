@@ -171,28 +171,28 @@ function isSpace(code) {
 }
 
 function isComplexSelectorChar(code) {
-  // [=91 ]=93 >=62 _=44 -=45 ~=126 ^=94 $=36 *=42 ==61 :=58 (=40 )=41 
-  // 
+  // [=91 ]=93 >=62 _=44 -=45 ~=126 ^=94 $=36 *=42 ==61 :=58 (=40 )=41
+  //
 }
 
 function isValidSelectorChar(code) {
   // return  (isAlphaNumeric(code) ||
-  //         (code == 46) || (code == 35) || // . 46, # 35 
+  //         (code == 46) || (code == 35) || // . 46, # 35
   //         (code == 95) || (code == 45) || //_ and -
   //         (code == 44) || (code == 32) || // ","" and " "
   //         (code == 62) // "> for prog. selectors"
-  //         ); 
+  //         );
   // newline used for more complex selectors (e.g. conditionals)?
   return (!isOpeningBrace(code) && !isClosingBrace(code));
 }
 
 function isOpeningBrace(charcode) {
-  // { 123  
+  // { 123
   return (charcode == 123);
 }
 
 function isClosingBrace(charcode) {
-  // } 125   
+  // } 125
   return (charcode == 125);
 }
 
@@ -247,7 +247,7 @@ function cssTextToRules(styleContent) {
         continue;
       } else {
         inPara = 1;
-        inSelector = 0;      
+        inSelector = 0;
         //TODO: What would this scenario look like?
       }
       continue;
@@ -299,7 +299,7 @@ let removeCss = (cssString) => {
   if (insertedCss != "") {
     browser.tabs.removeCss({code: cssString}).then(() => {
       insertedCss = "";
-    }); 
+    });
   }
 }
 
