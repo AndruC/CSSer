@@ -13,17 +13,13 @@ let applyButton = document.getElementById("apply-button");
 let resetButton = document.getElementById("reset-button");
 let hostnameContainer = document.getElementById("hostname-container");
 
-let hostnameFound = 0;
+let hostnameFound = false;
 let hostname;
 
 let tab;
 let tabUrl;
 
-let cssWasInserted = 0;
 let insertedCss = "";
-
-let author = "";
-//TODO: get FF username or ask for author name at startup/in settings.
 
 function log(...props) {
   if (__debugMode) {
@@ -136,7 +132,7 @@ setText("Initializing...");
 function ruleContentToCssString (ruleContent) {
   log({ruleContent})
 
-  if (hostnameFound == 0) {
+  if (!hostnameFound) {
     return "";
   }
 
@@ -145,13 +141,16 @@ function ruleContentToCssString (ruleContent) {
   log({ruleContent});
 
   for (key in ruleContent) {
-    //The nested if makes sure that you don't enumerate over properties in the prototype chain of the object (which is the behaviour you almost certainly want). You must use
+    // The nested if makes sure that you don't enumerate over properties in the
+    // prototype chain of the object (which is the behaviour you almost
+    // certainly want).
     if (Object.prototype.hasOwnProperty.call(ruleContent, key)) {
       let ruleText = ruleContent[key];
+
       log({key, ruleText});
 
       tempCssString += `${key}{${ruleText}}`;
-      }
+    }
   }
 
   return tempCssString;
@@ -201,7 +200,7 @@ function isNewline(charcode) {
 }
 
 function cssTextToRules(styleContent) {
-  log(`cssTextToRules(${styleContent})`);
+  log(`cssTextToRules`, {styleContent});
 
   let result = {};
 
@@ -292,11 +291,13 @@ let insertCss = (cssString) => {
     cssString: cssString
   });
 
-  insertedCs = cssString;
+  insertedCss = cssString;
 }
 
 let removeCss = (cssString) => {
   if (insertedCss != "") {
+    log(`removeCss`, {cssString});
+
     browser.tabs.removeCss({code: cssString}).then(() => {
       insertedCss = "";
     });
@@ -345,11 +346,6 @@ function applyRules() {
     tabUrl = new URL(activeTab.url);
     hostname = tabUrl.hostname;
 
-    if (cssWasInserted) {
-      removeCss(insertedCss);
-      //TODO I changed removeCss to use global insertedCss!
-    }
-
     let newText = getText();
 
     insertCss(newText);
@@ -370,7 +366,7 @@ function getTabUrl() {
     tabUrl = new URL(activeTab.url);
     hostname = tabUrl.hostname;
 
-    hostnameContainer.innerHTML = hostname
+    hostnameContainer.textContent = hostname
 
     log('got host name from tab', {activeTab, hostname});
 
@@ -389,7 +385,7 @@ function getTabUrl() {
         log(`couldn't find stored domain data`);
       } else {
         log('found stored rules', {hostname, rules});
-        ruleObject = JSON.parse(rules);
+        ruleObject = rules;
       }
 
       cssText = ruleContentToCssString(ruleObject['content']);
