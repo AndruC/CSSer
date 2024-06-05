@@ -39,53 +39,44 @@ function setRules(activeTab, hostname, cssText) {
 
   log(`setRules`, {cssObject});
 
-  let tempStorageObject;
-  let currentDate = printDate();
 
   let getHostnamePromise = browser.storage.sync.get(hostname);
 
   getHostnamePromise.then((res) => {
     log('getHostnamePromise', {res});
 
-    if (!res[hostname]) {
-      log(`${hostname} NOT found in browser.storage.local in setRules`);
+    const rules = res[hostname];
 
-      tempStorageObject = {
-        "content": cssObject,
-        "information": {
-          "author": author,
-          "creationDate": currentDate,
-          "updateDate": currentDate,
-          "votes": "0"
-        }
-      }
+    let ruleString = ruleToString(rules);
 
-      let ruleString = JSON.stringify(tempStorageObject);
+    ruleString.content = cssObject;
 
-      browser.tabs.sendMessage(activeTab.id, {
-        command: "saveRules",
-        hostname: hostname,
-        ruleString: ruleString
-      });
-    } else {
-
-      log(`${hostname} was found in browser.storage.local in setRules`);
-
-      tempStorageObject = JSON.parse(res[hostname]);
-
-      tempStorageObject.content = cssObject;
-      tempStorageObject.information.author = author;
-      tempStorageObject.information.updateDate = currentDate;
-
-      let ruleString = JSON.stringify(tempStorageObject);
-
-      browser.tabs.sendMessage(activeTab.id, {
-        command: "saveRules",
-        hostname: hostname,
-        ruleString: ruleString
-      });
-    }
+    browser.tabs.sendMessage(activeTab.id, {
+      command: "saveRules",
+      hostname: hostname,
+      ruleString: ruleString
+    });
   });
+}
+
+function ruleToString (rules) {
+  let result = {};
+
+  let currentDate = printDate();
+
+  if (rules) {
+    result = rules;
+    result.information.updateDate = currentDate;
+  } else {
+    result.information = {
+      creationDate: currentDate,
+      updateDate: currentDate,
+    }
+  }
+
+  let ruleString = JSON.stringify(result);
+
+  return result;
 }
 
 
