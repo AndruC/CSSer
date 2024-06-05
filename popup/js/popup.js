@@ -417,7 +417,7 @@ function getTabUrl() {
       console.log(`hostname: ${hostname}`);
     }
 
-    hostnameContainer.innerHTML = hostname
+    hostnameContainer.textContent = hostname;
 
     let getHostnamePromise = browser.storage.sync.get(hostname);
 
