@@ -33,14 +33,13 @@ if (__debugMode) {
 ////////////////////////////////////////
 
 
-function setRules(activeTab, hostname, cssText, callback) {
+function setRules(activeTab, hostname, cssText) {
   hostname = hostname.toString();
-
 
   let cssObject = cssTextToRules(cssText);
   if (__debugMode) {
     console.log(`cssObject in setRules:`);
-    console.log(cssObject); 
+    console.log(cssObject);
   }
 
   let tempStorageObject;
@@ -124,11 +123,9 @@ function printDate() {
 /// TEXTBOX INTERACTION ///
 
 
-let setText = (newText) => {
+let setText = (newText = "") => {
   if (__debugMode) {
-    console.log(`---setText---`);
-    console.log(newText);
-    console.log(`--------`); 
+    console.log(`---setText: ${newText} ---`);
   }
 
   textBox.value = newText;
@@ -138,7 +135,7 @@ let getText = () => {
   return textBox.value;
 }
 
-setText("Oops. You should not be seeing this. Try reopening the window.");
+setText("Initializing...");
 
 //////////////////////////
 
@@ -320,14 +317,10 @@ let insertCss = (cssString) => {
     console.log(`insertCss(`);
     console.log(cssString);
   }
-  // browser.tabs.insertCSS({code: cssString}).then(() => {
-  //   insertedCss = cssString;
-  // });
 
   browser.tabs.sendMessage(activeTab.id, {
     command: "insertCss",
     cssString: cssString
-    // ok NOW i get why variable name keys might need to be explicit
   });
   insertedCs = cssString;
 }
@@ -347,31 +340,6 @@ let removeCss = (cssString) => {
 ////// ASYNC FUNCTION SERIES BEGIN ///////
 
 let listenForClicks = () => {
-  if (__debugMode) {
-    console.log(`listenForClicks BEGIN`);
-    console.log(ruleObject);
-  }
-
-  cssText = ruleContentToCssString(ruleObject['content']);
-
-  if (__debugMode) {
-    console.log(`listenForClicks > cssText`);
-    console.log(cssText);
-  }
-  
-  if (cssText == "") {
-    if (__debugMode) {
-      console.log(`custom rules for ${hostname} not found`);
-      console.log(ruleObject);
-      setText(`${hostname}: There are no custom rules for this page.`); 
-      // setText(JSON.stringify(ruleObject));
-    } else {
-      setText(`${hostname}: There are no custom rules for this page.`); 
-    }
-  } else {
-    setText(cssText); 
-  }
-
   document.addEventListener("click", (e) => {
     if (__debugMode) {
       console.log(e);
@@ -380,17 +348,25 @@ let listenForClicks = () => {
 
     let targetId = e.target.id;
 
-    if (targetId == "apply-button") {
-      applyRules();      
-    } else if (targetId == "reset-button") {
-      // TODO: timer-based color fade reset button for "undo functionality"
-      setText(cssText);
+    switch (e.target.id) {
+      case "apply-button":
+        applyRules();
+        break;
+      case "reset-button":
+        // TODO: timer-based color fade reset button for "undo functionality"
+        setText(cssText);
+        break;
+      case "clear-button":
+        setText();
+        break;
+      default:
+        break;
     }
   })
 };
 
 function applyRules() {
-browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
+  browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
     activeTab = tabs[0]; // Safe to assume there will only be one result
     
     if (__debugMode) {
@@ -413,11 +389,7 @@ browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
     let newText = getText();
 
     insertCss(newText);
-    setRules(activeTab, hostname, newText, (res) => { 
-      if (__debugMode) {
-        console.log(`applyRules > setRules > saveRulesAsync callback ended:`);
-      }
-    });
+    setRules(activeTab, hostname, newText);
   });
 }
 
@@ -445,6 +417,8 @@ function getTabUrl() {
       console.log(`hostname: ${hostname}`);
     }
 
+    hostnameContainer.innerHTML = hostname
+
     let getHostnamePromise = browser.storage.sync.get(hostname);
 
     getHostnamePromise.then((res) => {
@@ -457,17 +431,25 @@ function getTabUrl() {
         hostnameFound = 1;
       }
 
-      if(!res[hostname]) {
+      let rules = res[hostname];
+
+      if(!rules) {
         if (__debugMode) {
-          console.log(`${hostname} not found in browser.storage.local rules`); 
-        } 
-      } else {
-        if (__debugMode) {
-          console.log(`${hostname} WAS found in browser.storage.local rules`); 
-          console.log(hostname);
-          console.log(JSON.parse(res[hostname]));
+          console.log(`couldn't find stored domain data`);
         }
-        ruleObject = JSON.parse(res[hostname]);
+      } else {
+        console.log(`${hostname} WAS found in browser.storage.local rules`);
+        console.log(hostname);
+        console.log(JSON.parse(res[hostname]));
+        ruleObject = JSON.parse(rules);
+      }
+
+      cssText = ruleContentToCssString(ruleObject['content']);
+
+      if (cssText == "") {
+        setText("");
+      } else {
+        setText(cssText);
       }
 
       listenForClicks();
