@@ -1,6 +1,4 @@
-// TODO: host rules online
-
-const __debugMode = 0;
+const __debugMode = false;
 const styleSheetId = "userStyleSheet-CSM";
 const __version = "1.0.3";
 
@@ -45,7 +43,9 @@ function ruleContentToCssStringOne (ruleContent) {
   let result = "";
 
   for (key in ruleContent) {
-    //The nested if makes sure that you don't enumerate over properties in the prototype chain of the object (which is the behaviour you almost certainly want). You must use
+    // The nested if makes sure that you don't enumerate over properties in the 
+		// prototype chain of the object (which is the behaviour you almost
+		// certainly want).
     if (Object.prototype.hasOwnProperty.call(ruleContent, key)) {
       let ruleText = ruleContent[key];
 
