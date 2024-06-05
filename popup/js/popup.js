@@ -13,7 +13,6 @@ let applyButton = document.getElementById("apply-button");
 let resetButton = document.getElementById("reset-button");
 let hostnameContainer = document.getElementById("hostname-container");
 
-let hostnameFound = false;
 let hostname;
 
 let tab;
@@ -67,18 +66,18 @@ function ruleToString(rules) {
   return result;
 }
 
-function setRules(activeTab, hostname, cssText) {
-  hostname = hostname.toString();
+function setRules(activeTab, cssText) {
+  tabUrl = new URL(activeTab.url);
+  hostname = tabUrl.hostname.toString();
 
   let cssObject = cssTextToRules(cssText);
 
   log(`setRules`, {cssObject});
 
-
   let getHostnamePromise = browser.storage.sync.get(hostname);
 
   getHostnamePromise.then((res) => {
-    log('getHostnamePromise', {res});
+    log('reading rules from store', {res});
 
     const rules = res[hostname];
 
@@ -106,10 +105,6 @@ let setText = (newText = "") => {
   textBox.value = newText;
 }
 
-let getText = () => {
-  return textBox.value;
-}
-
 setText("Initializing...");
 
 //////////////////////////
@@ -119,15 +114,9 @@ setText("Initializing...");
 /// JSON OBJECT TO CSS STRING CONVERTER ///
 
 function ruleContentToCssString (ruleContent) {
-  log({ruleContent})
+  log('transforming rule content', ruleContent)
 
-  if (!hostnameFound) {
-    return "";
-  }
-
-  let tempCssString = "";
-
-  log({ruleContent});
+  let result = "";
 
   for (key in ruleContent) {
     // The nested if makes sure that you don't enumerate over properties in the
@@ -138,11 +127,11 @@ function ruleContentToCssString (ruleContent) {
 
       log({key, ruleText});
 
-      tempCssString += `${key}{${ruleText}}`;
+      result += `${key}{${ruleText}}`;
     }
   }
 
-  return tempCssString;
+  return result;
 };
 
 
@@ -323,6 +312,8 @@ function bindGlobalClickHandler() {
 }
 
 function applyRules() {
+  if (!hostname) return
+
   browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
     activeTab = tabs[0]; // Safe to assume there will only be one result
 
@@ -331,14 +322,8 @@ function applyRules() {
     return activeTab;
   }, console.error)
   .then((activeTab) => {
-    tab = activeTab;
-    tabUrl = new URL(activeTab.url);
-    hostname = tabUrl.hostname;
-
-    let newText = getText();
-
-    insertCss(newText);
-    setRules(activeTab, hostname, newText);
+    insertCss(textBox.value);
+    setRules(activeTab, textBox.value);
   });
 }
 
@@ -346,55 +331,47 @@ function getTabUrl() {
   browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
     activeTab = tabs[0]; // Safe to assume there will only be one result
 
-    log(`activeTab.url: ${activeTab.url}`);
+    log('active tab', {activeTab});
 
-    return activeTab;
+    hostname = new URL(activeTab.url).hostname;
   }, console.error)
-  .then((activeTab) => {
-    tab = activeTab;
-    tabUrl = new URL(activeTab.url);
-    hostname = tabUrl.hostname;
-
+  .then(() => {
     hostnameContainer.textContent = hostname || "\u00A0"
 
-    log('got host name from tab', {activeTab, hostname});
+    if (!hostname) throw new Error("We're just not gonna run on this page.");
 
-    let getHostnamePromise = browser.storage.sync.get(hostname);
+    log('got host name from tab', {hostname});
 
-    getHostnamePromise.then((res) => {
-      log('fetching data', { res })
+    return browser.storage.sync.get(hostname);
+  }, console.error)
+  .then((res) => {
+    log('fetching data', { res })
 
-      if (res && res[hostname]) {
-        hostnameFound = 1;
-      }
+    let rules = res[hostname];
 
-      let rules = res[hostname];
+    if(!rules) {
+      log(`couldn't find stored domain data`);
+    } else {
+      log('found stored rules', {hostname, rules});
+      ruleObject = rules;
+    }
 
-      if(!rules) {
-        log(`couldn't find stored domain data`);
-      } else {
-        log('found stored rules', {hostname, rules});
-        ruleObject = rules;
-      }
+    cssText = ruleContentToCssString(ruleObject['content']);
 
-      cssText = ruleContentToCssString(ruleObject['content']);
+    if (cssText == "") {
+      log(`no rules for ${hostname}`, {ruleObject});
+    } else {
+      log('found css', {cssText});
+    }
 
-      if (cssText == "") {
-        log(`no rules for ${hostname}`, {ruleObject});
-
-        setText("");
-      } else {
-        log('found css', {cssText});
-
-        setText(cssText);
-      }
-
-      bindGlobalClickHandler();
-    })
+    setText(cssText);
+  }, console.error)
+  .then(() => {
+    log('binding event listeners')
+    bindGlobalClickHandler();
   })
-
 }
 
 //////////////////////////////////
 
-window.onload = getTabUrl;
+window.onload = () => getTabUrl();
