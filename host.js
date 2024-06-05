@@ -2,19 +2,17 @@ const __debugMode = false;
 const styleSheetId = "userStyleSheet-CSM";
 const __version = "1.0.3";
 
+function log(...props) {
+  if (__debugMode) {
+    console.log(...props);
+  }
+}
+
 const hostname = window.location.hostname || window.location.href;
 
-if (__debugMode) {
-  console.log(`hostname:: ${hostname}`);
-}
 
+log(`hostname:: ${hostname}`);
 ///////////////////////////////////
-
-function getHostnameRules(hostname, callback) {
-  browser.storage.sync.get(hostname)
-  .then((result) => callback(result));
-}
-
 
 function applyCssString (cssString) {
   let previousSheet = document.getElementById(styleSheetId);
@@ -23,22 +21,19 @@ function applyCssString (cssString) {
     previousSheet.parentNode.removeChild(previousSheet);
   }
 
+	// CSS string-to-DOM
   let newStyleSheet = document.createElement("style");
   newStyleSheet.type = "text/css";
   newStyleSheet.id = styleSheetId;
   newStyleSheet.appendChild(document.createTextNode(cssString));
   document.head.appendChild(newStyleSheet);
 
-  if (__debugMode) {
-    console.log(`---applyCssString`, {newStyleSheet});
-  }
+  log(`---applyCssString`, {newStyleSheet});
 };
 
 
 function ruleContentToCssStringOne (ruleContent) {
-  if (__debugMode) {
-    console.log(`ruleContentToCssStringOne`);
-  }
+  log(`ruleContentToCssStringOne`);
 
   let result = "";
 
@@ -49,9 +44,7 @@ function ruleContentToCssStringOne (ruleContent) {
     if (Object.prototype.hasOwnProperty.call(ruleContent, key)) {
       let ruleText = ruleContent[key];
 
-      if (__debugMode) {
-        console.log('found css rule', {key, ruleText});
-      }
+      log('found css rule', {key, ruleText});
 
       result += `${key} {\n${ruleText}\n}\n`;
     }
@@ -63,44 +56,36 @@ function ruleContentToCssStringOne (ruleContent) {
 ///////////////
 
 let checkAndApplyStyles = () => {
-  browser.storage.sync.get(hostname).then((hostRules) => {
-    if(!hostRules || !hostRules[hostname]) {
-      if (__debugMode) {
-        console.log(`${hostname} not found in storage`);
-      }
+  log(`checkAndApplyStyles() BEGIN ---`);
+
+  browser.storage.sync.get(hostname).then((storage) => {
+    if(!storage || !storage[hostname]) {
+      log(`${hostname} not found in storage`);
     } else {
-      if (__debugMode) {
-        console.log(`${hostname} rules were found in storage`, {hostRules});
-      }
-      let tempRuleObject = hostRules[hostname];
-      let cssString = ruleContentToCssStringOne(tempRuleObject['content']);
+      let rules = storage[hostname];
+      log(`${hostname} rules were found in storage`, {rules});
+			
+      let cssString = ruleContentToCssStringOne(rules['content']);
       let cssApplyResult = applyCssString(cssString);
     }
   });
-
 }
 
 
 ///////// RULE SYNC //////////////////
 
 function saveRulesAsync(newHostname, ruleString) {
-  let tempHostname = newHostname.toString().valueOf();
+  let symbol = newHostname.toString().valueOf();
 
-  if (__debugMode) {
-    console.log(`saveRulesAsync() BEGIN ---`);
-  }
+  log(`saveRulesAsync() BEGIN ---`, {ruleString});
 
-  let setRulePromise = browser.storage.sync.set({
-    [tempHostname]: ruleString
-  });
+  let setRulePromise = browser.storage.sync.set({ [symbol]: ruleString });
 
   setRulePromise.then((err) => {
     if (err) {
       console.error(err);
     } else {
-      if (__debugMode) {
-          console.log(`saveRulesAsync > setRulePromise success.`);
-      }
+      log(`saveRulesAsync storage SUCCESS ---`);
     }
   })
 }
