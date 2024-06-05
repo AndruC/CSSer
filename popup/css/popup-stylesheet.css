@@ -2,10 +2,6 @@
 	display: block;
 }
 
-.gap {
-	gap: 16px;
-}
-
 .flex {
 	flex : 1;
 }
@@ -22,7 +18,9 @@
 	flex-direction: row;
 }
 
-
+.gap {
+	gap: 16px;
+}
 
 
 body {
