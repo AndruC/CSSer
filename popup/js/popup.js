@@ -1,7 +1,7 @@
 // TODO: refresh on active tab change
 // TODO: support conditional selectors (look into using the browser itself to parse CSS)
 
-const __debugMode = 0;
+const __debugMode = false;
 
 /// PRODUCTION GLOBALS AND CONSTANTS ///
 
@@ -32,6 +32,41 @@ log("ALIVE");
 ////////////////////////////////////////
 
 
+/// DATE FUNCTION ///
+
+function printDate() {
+  let today = new Date();
+  let dd = String(today.getDate()).padStart(2, '0');
+  let mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+  let yyyy = today.getFullYear();
+
+  return mm + '/' + dd + '/' + yyyy;
+}
+
+
+/////////////////////
+
+
+function ruleToString(rules) {
+  let result = {};
+
+  let currentDate = printDate();
+
+  if (rules) {
+    result = rules;
+    result.information.updateDate = currentDate;
+  } else {
+    result.information = {
+      creationDate: currentDate,
+      updateDate: currentDate,
+    }
+  }
+
+  let ruleString = JSON.stringify(result);
+
+  return result;
+}
+
 function setRules(activeTab, hostname, cssText) {
   hostname = hostname.toString();
 
@@ -59,44 +94,7 @@ function setRules(activeTab, hostname, cssText) {
   });
 }
 
-function ruleToString (rules) {
-  let result = {};
-
-  let currentDate = printDate();
-
-  if (rules) {
-    result = rules;
-    result.information.updateDate = currentDate;
-  } else {
-    result.information = {
-      creationDate: currentDate,
-      updateDate: currentDate,
-    }
-  }
-
-  let ruleString = JSON.stringify(result);
-
-  return result;
-}
-
-
 ///////////////////////////
-
-
-
-/// DATE FUNCTION ///
-
-function printDate() {
-  let today = new Date();
-  let dd = String(today.getDate()).padStart(2, '0');
-  let mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
-  let yyyy = today.getFullYear();
-
-  return mm + '/' + dd + '/' + yyyy;
-}
-
-/////////////////////
-
 
 
 /// TEXTBOX INTERACTION ///
@@ -301,7 +299,7 @@ let removeCss = (cssString) => {
 
 ////// ASYNC FUNCTION SERIES BEGIN ///////
 
-let listenForClicks = () => {
+function bindGlobalClickHandler() {
   document.addEventListener("click", (e) => {
     log(`Clicked ${e.target.id}`, {e});
 
@@ -322,7 +320,7 @@ let listenForClicks = () => {
         break;
     }
   })
-};
+}
 
 function applyRules() {
   browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
@@ -357,7 +355,7 @@ function getTabUrl() {
     tabUrl = new URL(activeTab.url);
     hostname = tabUrl.hostname;
 
-    hostnameContainer.textContent = hostname
+    hostnameContainer.textContent = hostname || "\u00A0"
 
     log('got host name from tab', {activeTab, hostname});
 
@@ -391,7 +389,7 @@ function getTabUrl() {
         setText(cssText);
       }
 
-      listenForClicks();
+      bindGlobalClickHandler();
     })
   })
 

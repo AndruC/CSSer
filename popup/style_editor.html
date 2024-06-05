@@ -8,20 +8,18 @@
 
   <body>
 
-
     <div id = "popup-viewport" class = "viewport flex-container flex-vertical-container">
-      <p id = "hostname-container" class = "flex block-container"> </p>
+      <p title="Domain (host) name. Your CSS rules are applied only to this domain." id = "hostname-container" class = "flex block-container"> </p>
       <div id = "textbox-container" class = "flex block-container">
         <textarea id = "popup-textarea" class = "block-container" spellcheck = "false"></textarea>
       </div>
       <div id = "controls-container" class = "gap flex flex-container flex-horizontal-container">
-        <button id = "clear-button" class = "popup-button flex"> Clear </button>
-        <button id = "reset-button" class = "popup-button flex"> Undo </button>
-        <button id = "apply-button" class = "downward-box-shadow popup-button flex"> Apply </button>
+        <button title = "Empties the CSS texbox" id = "clear-button" class = "popup-button flex"> Clear </button>
+        <button title = "Resets to the last application" id = "reset-button" class = "popup-button flex"> Undo </button>
+        <button title = "Applies changes to the document" id = "apply-button" class = "downward-box-shadow popup-button flex"> Apply </button>
       </div>
     </div>
 
-    <script src = "../rules.json"></script>
     <script src = "js/popup.js"></script>
 
   </body>
