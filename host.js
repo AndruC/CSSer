@@ -1,6 +1,6 @@
 const __debugMode = false;
 const styleSheetId = "userStyleSheet-CSM";
-const __version = "1.0.3";
+const __version = browser.runtime.getManifest().version;
 
 function log(...props) {
   if (__debugMode) {
@@ -10,31 +10,11 @@ function log(...props) {
 
 const hostname = window.location.hostname || window.location.href;
 
-
 log(`hostname:: ${hostname}`);
+
 ///////////////////////////////////
 
-function applyCssString (cssString) {
-  let previousSheet = document.getElementById(styleSheetId);
-  if (previousSheet) {
-    previousSheet.disabled = true;
-    previousSheet.parentNode.removeChild(previousSheet);
-  }
-
-	// CSS string-to-DOM
-  let newStyleSheet = document.createElement("style");
-  newStyleSheet.type = "text/css";
-  newStyleSheet.id = styleSheetId;
-  newStyleSheet.appendChild(document.createTextNode(cssString));
-  document.head.appendChild(newStyleSheet);
-
-  log(`---applyCssString`, {newStyleSheet});
-};
-
-
 function ruleContentToCssStringOne (ruleContent) {
-  log(`ruleContentToCssStringOne`);
-
   let result = "";
 
   for (key in ruleContent) {
@@ -53,10 +33,26 @@ function ruleContentToCssStringOne (ruleContent) {
   return result;
 };
 
+function applyCssString (cssString) {
+  let previousSheet = document.getElementById(styleSheetId);
+  if (previousSheet) {
+    previousSheet.disabled = true;
+    previousSheet.parentNode.removeChild(previousSheet);
+  }
+
+	// CSS string-to-DOM
+  let newStyleSheet = document.createElement("style");
+  newStyleSheet.type = "text/css";
+  newStyleSheet.id = styleSheetId;
+  newStyleSheet.appendChild(document.createTextNode(cssString));
+  document.head.appendChild(newStyleSheet);
+};
+
+
 ///////////////
 
 let checkAndApplyStyles = () => {
-  log(`checkAndApplyStyles() BEGIN ---`);
+  log(`checkAndApplyStyles() BEGIN —>`);
 
   browser.storage.sync.get(hostname).then((storage) => {
     if(!storage || !storage[hostname]) {
@@ -65,8 +61,10 @@ let checkAndApplyStyles = () => {
       let rules = storage[hostname];
       log(`${hostname} rules were found in storage`, {rules});
 			
-      let cssString = ruleContentToCssStringOne(rules['content']);
-      let cssApplyResult = applyCssString(cssString);
+      const cssString = ruleContentToCssStringOne(rules['content']);
+      const cssApplyResult = applyCssString(cssString);
+
+			log(`styles APPLIED`);
     }
   });
 }
@@ -77,15 +75,13 @@ let checkAndApplyStyles = () => {
 function saveRulesAsync(newHostname, ruleString) {
   let symbol = newHostname.toString().valueOf();
 
-  log(`saveRulesAsync() BEGIN ---`, {ruleString});
+  log(`saveRulesAsync() BEGIN —>`, {ruleString});
 
-  let setRulePromise = browser.storage.sync.set({ [symbol]: ruleString });
-
-  setRulePromise.then((err) => {
+  browser.storage.sync.set({ [symbol]: ruleString }).then((err) => {
     if (err) {
       console.error(err);
     } else {
-      log(`saveRulesAsync storage SUCCESS ---`);
+      log(`saveRulesAsync storage SUCCESS`);
     }
   })
 }
@@ -108,8 +104,5 @@ browser.runtime.onMessage.addListener((message) => {
 
 ///////////////////////////////////////
 
-if (__debugMode) {
-  console.log(`current version:`);
-  console.log(__version);
-}
+log({__version});
 checkAndApplyStyles();

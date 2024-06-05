@@ -2,6 +2,7 @@
 // TODO: support conditional selectors (look into using the browser itself to parse CSS)
 
 const __debugMode = false;
+const __version = browser.runtime.getManifest().version;
 
 /// PRODUCTION GLOBALS AND CONSTANTS ///
 
@@ -72,7 +73,7 @@ function setRules(activeTab, cssText) {
 
   let cssObject = cssTextToRules(cssText);
 
-  log(`setRules`, {cssObject});
+  log(`setRules BEGIN —>`, {cssObject});
 
   let getHostnamePromise = browser.storage.sync.get(hostname);
 
@@ -90,6 +91,8 @@ function setRules(activeTab, cssText) {
       hostname: hostname,
       ruleString: ruleString
     });
+
+    log('rules SENT')
   });
 }
 
@@ -344,12 +347,10 @@ function getTabUrl() {
 
     return browser.storage.sync.get(hostname);
   }, console.error)
-  .then((res) => {
-    log('fetching data', { res })
+  .then((storage) => {
+    let rules = storage[hostname];
 
-    let rules = res[hostname];
-
-    if(!rules) {
+    if (!rules) {
       log(`couldn't find stored domain data`);
     } else {
       log('found stored rules', {hostname, rules});
@@ -374,4 +375,5 @@ function getTabUrl() {
 
 //////////////////////////////////
 
+log({__version});
 window.onload = () => getTabUrl();
