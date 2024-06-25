@@ -1,7 +1,8 @@
 // TODO: refresh on active tab change
 // TODO: support conditional selectors (look into using the browser itself to parse CSS)
 
-const __debugMode = 0;
+const __debugMode = false;
+const __version = browser.runtime.getManifest().version;
 
 /// PRODUCTION GLOBALS AND CONSTANTS ///
 
@@ -13,97 +14,22 @@ let applyButton = document.getElementById("apply-button");
 let resetButton = document.getElementById("reset-button");
 let hostnameContainer = document.getElementById("hostname-container");
 
-let hostnameFound = 0;
 let hostname;
 
 let tab;
 let tabUrl;
 
-let cssWasInserted = 0;
 let insertedCss = "";
 
-let author = "";
-//TODO: get FF username or ask for author name at startup/in settings.
-
-
-if (__debugMode) {
-  console.log("ALIVE");
+function log(...props) {
+  if (__debugMode) {
+    console.log(...props);
+  }
 }
+
+log("ALIVE");
 
 ////////////////////////////////////////
-
-
-function setRules(activeTab, hostname, cssText, callback) {
-  hostname = hostname.toString();
-
-
-  let cssObject = cssTextToRules(cssText);
-  if (__debugMode) {
-    console.log(`cssObject in setRules:`);
-    console.log(cssObject); 
-  }
-
-  let tempStorageObject;
-  let currentDate = printDate();
-
-  let getHostnamePromise = browser.storage.sync.get(hostname);
-
-  getHostnamePromise.then((res) => {
-    if (__debugMode) {
-      console.log(`setRules > getHostnamePromise > res`);
-      console.log(res);
-    }
-
-    if (!res[hostname]) {
-      if (__debugMode) {
-        console.log(`${hostname} NOT found in browser.storage.local in setRules`);
-      }
-
-      tempStorageObject = {
-        "content": cssObject,
-        "information": {
-          "author": author,
-          "creationDate": currentDate,
-          "updateDate": currentDate,
-          "votes": "0"
-        }
-      }
-
-      let ruleString = JSON.stringify(tempStorageObject);
-
-      browser.tabs.sendMessage(activeTab.id, {
-        command: "saveRules",
-        hostname: hostname,
-        ruleString: ruleString
-      });
-    } else {
-
-      if (__debugMode) {
-        console.log(`${hostname} was found in browser.storage.local in setRules`);
-        console.log(`existing ${hostname} rules:`);
-        console.log(JSON.parse(res[hostname]));
-      }
-
-      tempStorageObject = JSON.parse(res[hostname]);
-
-      tempStorageObject.content = cssObject;
-      tempStorageObject.information.author = author;
-      tempStorageObject.information.updateDate = currentDate;
-
-      let ruleString = JSON.stringify(tempStorageObject);
-
-      browser.tabs.sendMessage(activeTab.id, {
-        command: "saveRules",
-        hostname: hostname,
-        ruleString: ruleString
-      });
-    }
-  });
-}
-
-
-///////////////////////////
-
 
 
 /// DATE FUNCTION ///
@@ -117,28 +43,72 @@ function printDate() {
   return mm + '/' + dd + '/' + yyyy;
 }
 
+
 /////////////////////
 
+
+function ruleToString(rules) {
+  let result = {};
+
+  let currentDate = printDate();
+
+  if (rules) {
+    result = rules;
+    result.information.updateDate = currentDate;
+  } else {
+    result.information = {
+      creationDate: currentDate,
+      updateDate: currentDate,
+    }
+  }
+
+  let ruleString = JSON.stringify(result);
+
+  return result;
+}
+
+function setRules(activeTab, cssText) {
+  tabUrl = new URL(activeTab.url);
+  hostname = tabUrl.hostname.toString();
+
+  let cssObject = cssTextToRules(cssText);
+
+  log(`setRules BEGIN —>`, {cssObject});
+
+  let getHostnamePromise = browser.storage.sync.get(hostname);
+
+  getHostnamePromise.then((res) => {
+    log('reading rules from store', {res});
+
+    const rules = res[hostname];
+
+    let ruleString = ruleToString(rules);
+
+    ruleString.content = cssObject;
+
+    browser.tabs.sendMessage(activeTab.id, {
+      command: "saveRules",
+      hostname: hostname,
+      ruleString: ruleString
+    });
+
+    log('rules SENT')
+  });
+}
+
+///////////////////////////
 
 
 /// TEXTBOX INTERACTION ///
 
 
-let setText = (newText) => {
-  if (__debugMode) {
-    console.log(`---setText---`);
-    console.log(newText);
-    console.log(`--------`); 
-  }
+let setText = (newText = "") => {
+  log(`---setText: ${newText} ---`);
 
   textBox.value = newText;
 }
 
-let getText = () => {
-  return textBox.value;
-}
-
-setText("Oops. You should not be seeing this. Try reopening the window.");
+setText("Initializing...");
 
 //////////////////////////
 
@@ -147,39 +117,24 @@ setText("Oops. You should not be seeing this. Try reopening the window.");
 /// JSON OBJECT TO CSS STRING CONVERTER ///
 
 function ruleContentToCssString (ruleContent) {
-  if (__debugMode) {
-    console.log(`ruleContentToCssString(`);
-    console.log(ruleContent);
-    console.log(`-------`);
+  log('transforming rule content', ruleContent)
 
-  }
-
-  if (hostnameFound == 0) {
-    return "";
-  }
-
-  let tempCssString = "";
-
-  if (__debugMode) {
-    console.log(`ruleContent:`);
-    console.log(ruleContent);
-  }
+  let result = "";
 
   for (key in ruleContent) {
-    //The nested if makes sure that you don't enumerate over properties in the prototype chain of the object (which is the behaviour you almost certainly want). You must use
+    // The nested if makes sure that you don't enumerate over properties in the
+    // prototype chain of the object (which is the behaviour you almost
+    // certainly want).
     if (Object.prototype.hasOwnProperty.call(ruleContent, key)) {
       let ruleText = ruleContent[key];
-      if (__debugMode) {
-        console.log("ruleText:");
-        console.log(key, ruleText);
-      }
 
+      log({key, ruleText});
 
-      tempCssString += `${key}{${ruleText}}`;
-      }
+      result += `${key}{${ruleText}}`;
+    }
   }
 
-  return tempCssString;
+  return result;
 };
 
 
@@ -196,28 +151,28 @@ function isSpace(code) {
 }
 
 function isComplexSelectorChar(code) {
-  // [=91 ]=93 >=62 _=44 -=45 ~=126 ^=94 $=36 *=42 ==61 :=58 (=40 )=41 
-  // 
+  // [=91 ]=93 >=62 _=44 -=45 ~=126 ^=94 $=36 *=42 ==61 :=58 (=40 )=41
+  //
 }
 
 function isValidSelectorChar(code) {
   // return  (isAlphaNumeric(code) ||
-  //         (code == 46) || (code == 35) || // . 46, # 35 
+  //         (code == 46) || (code == 35) || // . 46, # 35
   //         (code == 95) || (code == 45) || //_ and -
   //         (code == 44) || (code == 32) || // ","" and " "
   //         (code == 62) // "> for prog. selectors"
-  //         ); 
+  //         );
   // newline used for more complex selectors (e.g. conditionals)?
   return (!isOpeningBrace(code) && !isClosingBrace(code));
 }
 
 function isOpeningBrace(charcode) {
-  // { 123  
+  // { 123
   return (charcode == 123);
 }
 
 function isClosingBrace(charcode) {
-  // } 125   
+  // } 125
   return (charcode == 125);
 }
 
@@ -226,11 +181,9 @@ function isNewline(charcode) {
 }
 
 function cssTextToRules(styleContent) {
-  if (__debugMode) {
-    console.log(`cssTextToRules(${styleContent})`);
-  }
+  log(`cssTextToRules`, {styleContent});
 
-  let tempObj = {};
+  let result = {};
 
   let inPara = 0; //just accept everything in "paragraph"
   let inSelector = 0;
@@ -274,7 +227,7 @@ function cssTextToRules(styleContent) {
         continue;
       } else {
         inPara = 1;
-        inSelector = 0;      
+        inSelector = 0;
         //TODO: What would this scenario look like?
       }
       continue;
@@ -283,7 +236,7 @@ function cssTextToRules(styleContent) {
         if (isClosingBrace(ch)) {
           inPara = 0;
           inSelector = 0;
-          tempObj[tempKey] = tempValue;
+          result[tempKey] = tempValue;
 
           tempKey = "";
           tempValue = "";
@@ -297,13 +250,9 @@ function cssTextToRules(styleContent) {
     }
   }
 
-  if (__debugMode) {
-    console.log(`cssTextToRules result:`);
-    console.log(tempObj);
-    console.log(JSON.stringify(tempObj));
-    console.log(`---------------------`);
-  }
-  return tempObj;
+  log(`cssTextToRules result:`, result);
+
+  return result;
 };
 
 
@@ -316,27 +265,23 @@ function cssTextToRules(styleContent) {
 /// POPUP-TAB (ACTIVE) CSS INSERTION AND DELETION ///
 
 let insertCss = (cssString) => {
-  if (__debugMode) {
-    console.log(`insertCss(`);
-    console.log(cssString);
-  }
-  // browser.tabs.insertCSS({code: cssString}).then(() => {
-  //   insertedCss = cssString;
-  // });
+  log(`insertCss`, {cssString});
 
   browser.tabs.sendMessage(activeTab.id, {
     command: "insertCss",
     cssString: cssString
-    // ok NOW i get why variable name keys might need to be explicit
   });
-  insertedCs = cssString;
+
+  insertedCss = cssString;
 }
 
 let removeCss = (cssString) => {
   if (insertedCss != "") {
+    log(`removeCss`, {cssString});
+
     browser.tabs.removeCss({code: cssString}).then(() => {
       insertedCss = "";
-    }); 
+    });
   }
 }
 
@@ -346,136 +291,89 @@ let removeCss = (cssString) => {
 
 ////// ASYNC FUNCTION SERIES BEGIN ///////
 
-let listenForClicks = () => {
-  if (__debugMode) {
-    console.log(`listenForClicks BEGIN`);
-    console.log(ruleObject);
-  }
-
-  cssText = ruleContentToCssString(ruleObject['content']);
-
-  if (__debugMode) {
-    console.log(`listenForClicks > cssText`);
-    console.log(cssText);
-  }
-  
-  if (cssText == "") {
-    if (__debugMode) {
-      console.log(`custom rules for ${hostname} not found`);
-      console.log(ruleObject);
-      setText(`${hostname}: There are no custom rules for this page.`); 
-      // setText(JSON.stringify(ruleObject));
-    } else {
-      setText(`${hostname}: There are no custom rules for this page.`); 
-    }
-  } else {
-    setText(cssText); 
-  }
-
+function bindGlobalClickHandler() {
   document.addEventListener("click", (e) => {
-    if (__debugMode) {
-      console.log(e);
-      console.log(e.target.id); 
-    }
+    log(`Clicked ${e.target.id}`, {e});
 
     let targetId = e.target.id;
 
-    if (targetId == "apply-button") {
-      applyRules();      
-    } else if (targetId == "reset-button") {
-      // TODO: timer-based color fade reset button for "undo functionality"
-      setText(cssText);
+    switch (e.target.id) {
+      case "apply-button":
+        applyRules();
+        break;
+      case "reset-button":
+        // TODO: timer-based color fade reset button for "undo functionality"
+        setText(cssText);
+        break;
+      case "clear-button":
+        setText();
+        break;
+      default:
+        break;
     }
   })
-};
+}
 
 function applyRules() {
-browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
+  if (!hostname) return
+
+  browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
     activeTab = tabs[0]; // Safe to assume there will only be one result
-    
-    if (__debugMode) {
-      console.log(`activeTab.url:`);
-      console.log(activeTab.url);      
-    }
+
+    log(`activeTab.url: ${activeTab.url}`);
 
     return activeTab;
   }, console.error)
   .then((activeTab) => {
-    tab = activeTab;
-    tabUrl = new URL(activeTab.url);
-    hostname = tabUrl.hostname;
-
-    if (cssWasInserted) {
-      removeCss(insertedCss);
-      //TODO I changed removeCss to use global insertedCss!
-    }
-
-    let newText = getText();
-
-    insertCss(newText);
-    setRules(activeTab, hostname, newText, (res) => { 
-      if (__debugMode) {
-        console.log(`applyRules > setRules > saveRulesAsync callback ended:`);
-      }
-    });
+    insertCss(textBox.value);
+    setRules(activeTab, textBox.value);
   });
 }
 
 function getTabUrl() {
   browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
     activeTab = tabs[0]; // Safe to assume there will only be one result
-    
-    if (__debugMode) {
-      console.log(`activeTab.url:`);
-      console.log(activeTab.url);      
-    }
 
-    return activeTab;
+    log('active tab', {activeTab});
+
+    hostname = new URL(activeTab.url).hostname;
   }, console.error)
-  .then((activeTab) => {
-    tab = activeTab;
-    tabUrl = new URL(activeTab.url);
-    hostname = tabUrl.hostname;
+  .then(() => {
+    hostnameContainer.textContent = hostname || "\u00A0"
 
-    if (__debugMode) {
-      console.log(`activeTab`);
-      console.log(activeTab);
+    if (!hostname) throw new Error("We're just not gonna run on this page.");
+
+    log('got host name from tab', {hostname});
+
+    return browser.storage.sync.get(hostname);
+  }, console.error)
+  .then((storage) => {
+    let rules = storage[hostname];
+
+    if (!rules) {
+      log(`couldn't find stored domain data`);
+    } else {
+      log('found stored rules', {hostname, rules});
+      ruleObject = rules;
     }
-    if (__debugMode) {
-      console.log(`hostname: ${hostname}`);
+
+    cssText = ruleContentToCssString(ruleObject['content']);
+
+    if (cssText == "") {
+      log(`no rules for ${hostname}`, {ruleObject});
+    } else {
+      log('found css', {cssText});
     }
 
-    let getHostnamePromise = browser.storage.sync.get(hostname);
-
-    getHostnamePromise.then((res) => {
-      if (__debugMode) {
-        console.log(`getHostnamePromise.then =>`);
-        console.log(res);
-      }
-
-      if (res && res[hostname]) {
-        hostnameFound = 1;
-      }
-
-      if(!res[hostname]) {
-        if (__debugMode) {
-          console.log(`${hostname} not found in browser.storage.local rules`); 
-        } 
-      } else {
-        if (__debugMode) {
-          console.log(`${hostname} WAS found in browser.storage.local rules`); 
-          console.log(hostname);
-          console.log(JSON.parse(res[hostname]));
-        }
-        ruleObject = JSON.parse(res[hostname]);
-      }
-
-      listenForClicks();
-    })
+    setText(cssText);
+  }, console.error)
+  .then(() => {
+    log('binding event listeners')
+    bindGlobalClickHandler();
   })
-
 }
 
 //////////////////////////////////
 
-window.onload = getTabUrl;
+log({__version});
+window.onload = () => getTabUrl();
