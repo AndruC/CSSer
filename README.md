@@ -15,11 +15,11 @@ The add-on is currently experimental given some bugs.
 
 ## Email
 
-custom_style_manager@outlook.com 
+hello@dragoon.dev 
 
 ## Website
 
-https://github.com/HalilCan/customStyleManager
+https://github.com/AndruC/CSSer
 
 
 ### Tags
